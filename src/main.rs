@@ -99,7 +99,7 @@ fn send_patch(patches: &Vec<Patch>, index: usize, tx: &mpsc::Sender<u8>) -> Stri
             }
         }
     }
-    format!("#{} {}", index + 1, patch.name)
+    format!("#{}/{} {}", index + 1, patches.len(), patch.name)
 }
 
 fn read_into_queue(f: &mut fs::File, tx: mpsc::Sender<u8>) {
