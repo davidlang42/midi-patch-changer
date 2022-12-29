@@ -11,7 +11,7 @@ use console::{Term, Key};
 #[macro_use] extern crate serde_derive;
 
 #[derive(Serialize, Deserialize)]
-struct PatchPreset {
+struct Patch {
     name: String,
     patch: Option<u8>
 }
@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     let midi_in = args.get(1).ok_or("The first argument should be the MIDI-IN device")?;
     let midi_out = args.get(2).ok_or("The second argument should be the MIDI-OUT device")?;
-    let patches: Vec<PatchPreset> = match args.get(3) {
+    let patches: Vec<Patch> = match args.get(3) {
         Some(patch_file) => {
             let json = fs::read_to_string(&patch_file).map_err(|e| format!("Cannot read from '{}': {}", patch_file, e))?;
             //TODO hack in some nicety for trailing commas, newlines instead of commas, non-quoted keys
@@ -68,7 +68,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn send_patch(patches: &Vec<PatchPreset>, index: usize, tx: &mpsc::Sender<u8>) -> String {
+fn send_patch(patches: &Vec<Patch>, index: usize, tx: &mpsc::Sender<u8>) -> String {
     let patch = &patches[index];
     if let Some(number) = patch.patch {
         if tx.send(192).is_err() {
