@@ -5,8 +5,11 @@ use std::sync::mpsc;
 use std::thread;
 use std::io::{Read, Write};
 use console::{Term, Key};
-//TODO send proper midi messages
-// use wmidi::MidiMessage;
+
+//TODO send proper midi messages to avoid race condition between patch change commands and midi-thru from input device
+//use wmidi::MidiMessage;
+//[dependencies]
+//wmidi = "4.0.6"
 
 #[macro_use] extern crate serde_derive;
 
