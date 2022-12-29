@@ -13,7 +13,10 @@ use console::{Term, Key};
 #[derive(Serialize, Deserialize)]
 struct Patch {
     name: String,
-    patch: Option<u8>
+    bank_msb: Option<u8>,
+    bank_lsb: Option<u8>,
+    program: Option<u8>,
+    midi: Option<String> // space separated hex bytes of arbitrary midi commands
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -70,12 +73,27 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn send_patch(patches: &Vec<Patch>, index: usize, tx: &mpsc::Sender<u8>) -> String {
     let patch = &patches[index];
-    if let Some(number) = patch.patch {
-        if tx.send(192).is_err() {
-            return format!("Error sending patch change #{}", index + 1);
-        }
-        if tx.send(number).is_err() {
-            return format!("Error sending patch change #{}", index + 1);
+    if let Some(msb) = patch.bank_msb {
+        tx.send(176).unwrap(); // B0
+        tx.send(0).unwrap(); // 00
+        tx.send(msb).unwrap();
+    }
+    if let Some(lsb) = patch.bank_lsb {
+        tx.send(176).unwrap(); // B0
+        tx.send(32).unwrap(); // 20
+        tx.send(lsb).unwrap();
+    }
+    if let Some(prog) = patch.program {
+        tx.send(192).unwrap(); // C0
+        tx.send(prog).unwrap();
+    }
+    if let Some(midi_string) = &patch.midi {
+        for hex in midi_string.split(" ") {
+            if let Ok(byte) = u8::from_str_radix(hex, 16) {
+                tx.send(byte).unwrap();
+            } else {
+                println!("Error: '{}' is not a valid HEX MIDI byte (00-FF)", hex);
+            }
         }
     }
     format!("#{} {}", index + 1, patch.name)
@@ -88,7 +106,7 @@ fn read_into_queue(f: &mut fs::File, tx: mpsc::Sender<u8>) {
             panic!("Error writing to queue.");
         }
     }
-    panic!("Reading into queue has finished.");
+    println!("NOTE: Input device is not connected.");
 }
 
 fn write_from_queue(f: &mut fs::File, rx: mpsc::Receiver<u8>) {

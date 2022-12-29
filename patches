@@ -1,3 +1,3 @@
-{"name":"Patch A", "patch":1},
-{"name":"Patch B", "patch":2},
-{"name":"Patch C", "patch":3}
+{"name":"Patch A", "program":1, "bank_lsb":10},
+{"name":"Patch B", "program":2, "bank_msb":20},
+{"name":"Patch C", "program":3, "midi":"00 10 20 A0 FF"}
