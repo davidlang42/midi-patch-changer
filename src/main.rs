@@ -31,11 +31,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut input = fs::File::options().read(true).open(midi_in).map_err(|e| format!("Cannot open MIDI IN '{}': {}", midi_in, e))?;
     let mut output = fs::File::options().write(true).open(midi_out).map_err(|e| format!("Cannot open MIDI OUT '{}': {}", midi_out, e))?;
     let (tx, rx) = mpsc::channel();
-    thread::Builder::new().name(format!("midi-out")).spawn(move || write_from_queue(&mut output, rx));
-    thread::Builder::new().name(format!("midi-in")).spawn(move || read_into_queue(&mut input, tx.clone()));
+    thread::Builder::new().name(format!("midi-out")).spawn(move || write_from_queue(&mut output, rx))?;
+    thread::Builder::new().name(format!("midi-in")).spawn(move || read_into_queue(&mut input, tx.clone()))?;
     // run patch change UI
     loop {
-
+        //TODO
     }
 }
 
