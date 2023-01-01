@@ -66,7 +66,7 @@ impl Application for PatchSystem {
             .height(Length::Fill)
             .vertical_alignment(alignment::Vertical::Center)
             .horizontal_alignment(alignment::Horizontal::Center);
-        let bottom: Element<Message> = if self.show_buttons {
+        let bottom = if self.show_buttons {
             let button_text = small / 2;
             row![
                 button(text("Next Patch").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
@@ -84,17 +84,16 @@ impl Application for PatchSystem {
             ]
             .spacing(10)
             .height(Length::Units(small))
-            .align_items(Alignment::Fill)
-            .into()
         } else {
-            text(match self.device.next_patch() { Some(patch) => &patch.name, None => ""})
-                .size(small)
-                .height(Length::Units(small))
-                .horizontal_alignment(alignment::Horizontal::Center)
-                .into()
+            row![
+                text(match self.device.next_patch() { Some(patch) => &patch.name, None => ""})
+                    .size(small)
+                    .height(Length::Units(small))
+                    .width(Length::Fill)
+                    .horizontal_alignment(alignment::Horizontal::Center)
+            ]
         };
         column![top, middle, bottom]
-            .width(Length::Units(self.screen_width as u16))
             .padding(10)
             .align_items(Alignment::Fill)
             .into()
