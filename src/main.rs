@@ -1,3 +1,4 @@
+use std::fs;
 use std::env;
 use std::error::Error;
 use iced::{Application, Settings};
@@ -11,7 +12,7 @@ mod gui;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() > 1 {
+    if args.len() >= 3 {
         // cli
         let midi_in = args.get(1).ok_or("The first argument should be the MIDI-IN device (or '-' for no input device)")?;
         let midi_out = args.get(2).ok_or("The second argument should be the MIDI-OUT device")?;
@@ -19,18 +20,38 @@ fn main() -> Result<(), Box<dyn Error>> {
         cli::run(&mut device);
     } else {
         // gui
+        let patch_dir_or_file = match args.get(1) {
+            Some(arg) => arg,
+            None => "."
+        };
         let (tx, rx) = mpsc::channel();
         let flags = gui::devicepicker::Flags {
-            options: vec![String::from("Test 1"), String::from("Test 2"), String::from("Test 3")],//TODO
+            midi_options: list_files("/dev", "midi")?,
+            patch_options: list_files(patch_dir_or_file, "")?,
             result_sender: tx
         };
-        gui::DevicePicker::run(Settings::with_flags(flags)).map_err(|e| format!("GUI error: {}", e))?;
+        gui::DevicePicker::run(Settings::with_flags(flags)).map_err(|e| format!("DevicePicker GUI error: {}", e))?;
         if let Ok(device) = rx.try_recv() {
-            println!("{}", device);
-            //gui::PatchSystem::run(Settings::with_flags(device)).map_err(|e| format!("GUI error: {}", e))?;
+            gui::PatchSystem::run(Settings::with_flags(device)).map_err(|e| format!("PatchSystem GUI error: {}", e))?;
         } else {
             println!("No devices selected.");
         }
     }
     Ok(())
+}
+
+fn list_files(root: &str, prefix: &str) -> Result<Vec<String>, Box<dyn Error>> {
+    let md = fs::metadata(root)?;
+    if md.is_dir() {
+        let mut files = Vec::new();
+        for entry in fs::read_dir(root)? {
+            let path = entry?.path();
+            if path.is_file() && path.file_name().unwrap().to_string_lossy().starts_with(prefix) {
+                files.push(path.display().to_string());
+            }
+        }
+        Ok(files)
+    } else {
+        Ok(vec![root.to_string()])
+    }
 }

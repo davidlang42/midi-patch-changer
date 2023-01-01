@@ -1,25 +1,29 @@
-use iced::widget::{button, row, column, text, text_input, pick_list};
+use iced::widget::{button, row, column, text, pick_list};
 use iced::{Application, Command, Theme, Element};
 use iced::executor;
 use iced::Subscription;
 use iced_native::{window, Event};
 use iced::window::set_mode;
 use std::sync::mpsc;
+use crate::midi;
 
 pub struct DevicePicker {
-    options: Vec<String>,
+    midi_options: Vec<String>,
     midi_in: String,
     midi_out: String,
+    patch_options: Vec<String>,
     patch_file: String,
     exit: bool,
     screen_width: u32,
     screen_height: u32,
-    result_sender: mpsc::Sender<String>
+    result_sender: mpsc::Sender<midi::ThruDevice>,
+    last_error: String
 }
 
 pub struct Flags {
-    pub options: Vec<String>,
-    pub result_sender: mpsc::Sender<String>
+    pub midi_options: Vec<String>,
+    pub patch_options: Vec<String>,
+    pub result_sender: mpsc::Sender<midi::ThruDevice>
 }
 
 #[derive(Debug, Clone)]
@@ -40,15 +44,26 @@ impl Application for DevicePicker {
     type Theme = Theme;
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
+        let (midi_in, midi_out) = match flags.midi_options.len() {
+            0 => panic!("No MIDI devices found."),
+            1 => (String::new(), flags.midi_options[0].clone()),
+            _ => (flags.midi_options[0].clone(), flags.midi_options[1].clone())
+        };
+        let patch_file = match flags.patch_options.len() {
+            0 => String::new(),
+            _ => flags.patch_options[0].clone()
+        };
         (Self {
-            options: flags.options,
+            midi_options: flags.midi_options,
+            patch_options: flags.patch_options,
             result_sender: flags.result_sender,
-            midi_in: String::new(),
-            midi_out: String::new(),
-            patch_file: String::new(),
+            midi_in,
+            midi_out,
+            patch_file,
             exit: false,
             screen_width: 100,
-            screen_height: 100
+            screen_height: 100,
+            last_error: String::new()
         //TODO }, set_mode(window::Mode::Fullscreen))
         }, Command::none())
     }
@@ -67,20 +82,21 @@ impl Application for DevicePicker {
         column![
             row![
                 text("MIDI IN: ").size(size),
-                pick_list(&self.options, Some(self.midi_in.clone()), Message::MidiInChanged)
+                pick_list(&self.midi_options, Some(self.midi_in.clone()), Message::MidiInChanged)
             ],
             row![
                 text("MIDI OUT: ").size(size),
-                pick_list(&self.options, Some(self.midi_out.clone()), Message::MidiOutChanged)
+                pick_list(&self.midi_options, Some(self.midi_out.clone()), Message::MidiOutChanged)
             ],
             row![
                 text("Patches: ").size(size),
-                text_input("Path to file", &self.patch_file, Message::PatchFileChanged)
+                pick_list(&self.patch_options, Some(self.patch_file.clone()), Message::PatchFileChanged)
             ],
             row![
                 button("Start").on_press(Message::Start),
                 button("Quit").on_press(Message::Quit)
-            ]
+            ],
+            text(&self.last_error).size(size / 2)
         ].into()
     }
 
@@ -97,8 +113,20 @@ impl Application for DevicePicker {
                 }
             },
             Message::Start => {
-                self.result_sender.send(self.patch_file.clone());
-                self.exit = true;
+                if !self.exit {
+                    match midi::ThruDevice::new(non_empty(&self.midi_in), &self.midi_out, non_empty(&self.patch_file)) {
+                        Ok(device) => {
+                            if let Err(e) = self.result_sender.send(device) {
+                                self.last_error = format!("{}", e);
+                            } else {
+                                self.exit = true;
+                            }
+                        },
+                        Err(e) => {
+                            self.last_error = format!("{}", e);
+                        }
+                    };
+                }
             },
             Message::Quit => self.exit = true,
             Message::MidiInChanged(midi_in) => {
@@ -115,5 +143,13 @@ impl Application for DevicePicker {
             }
         }
         Command::none()
+    }
+}
+
+fn non_empty(s: &String) -> Option<&String> {
+    if s.is_empty() {
+        None
+    } else {
+        Some(s)
     }
 }
