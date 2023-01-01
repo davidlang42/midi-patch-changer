@@ -111,12 +111,19 @@ struct InitialFlags {
 struct PatchState {
     patches: Vec<Patch>,
     index: usize,
-    tx: mpsc::Sender<u8>
+    tx: mpsc::Sender<u8>,
+    screen_height: u32,
+    screen_width: u32,
+    show_buttons: bool
 }
 
 impl PatchState {
     fn current(&self) -> String {
-        format!("#{} {}", self.index + 1, self.patches[self.index].name)
+        if self.patches.len() > 0 {
+            format!("#{} {}", self.index + 1, self.patches[self.index].name)
+        } else {
+            String::from("")
+        }
     }
 
     fn next(&self) -> String {
@@ -135,20 +142,39 @@ impl PatchState {
         }
     }
 
-    fn send(&self) {
+    fn change(&mut self, delta: isize) {
+        let new_index = self.index as isize + delta;
+        if new_index >= 0 && (new_index as usize) < self.patches.len() {
+            self.index = new_index as usize;
+            self.resend();
+        }
+    }
+
+    fn reset(&mut self) {
+        self.index = 0;
+        if self.patches.len() > 0 {
+            self.resend();
+        }
+    }
+
+    fn resend(&self) {
         send_patch(&self.patches, self.index, &self.tx);
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
     NextPatch,
-    PreviousPatch
+    PreviousPatch,
+    ResetPatch,
+    EventOccurred(iced_native::Event)
 }
 
-use iced::widget::{button, column, text};
-use iced::{Application, Command, Theme, Settings, Element};
+use iced::widget::{button, row, column, text};
+use iced::{Application, Command, Theme, Settings, Element, Alignment};
 use iced::executor;
+use iced::Subscription;
+use iced_native::{window, mouse, Event, Length};
 
 impl Application for PatchState {
     type Message = Message;
@@ -159,7 +185,7 @@ impl Application for PatchState {
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         let command = Command::none();
         //TODO let command = window::set_mode(window::Mode::Fullscreen);
-        (Self { patches: flags.patches, index: 0, tx: flags.tx }, command)
+        (Self { patches: flags.patches, index: 0, tx: flags.tx, screen_height: 100, screen_width: 100, show_buttons: false }, command)
     }
 
     fn title(&self) -> String {
@@ -167,23 +193,51 @@ impl Application for PatchState {
     }
 
     fn view(&self) -> Element<Message> {
-        // We use a column: a simple vertical layout
-        column![
-            button("Previous Patch").on_press(Message::PreviousPatch),
+        let mut col = column![
             text(self.previous()).size(20),
             text(self.current()).size(50),
-            text(self.next()).size(20),
-            button("Next Patch").on_press(Message::NextPatch),
-        ].into()
+            text(self.next()).size(20)
+        ]
+        .align_items(Alignment::Fill)
+        .height(Length::Units(self.screen_height as u16))
+        .width(Length::Units(self.screen_width as u16));
+        if self.show_buttons {
+            col = col.push(row![
+                button("Next Patch").on_press(Message::NextPatch),
+                button("Previous Patch").on_press(Message::PreviousPatch),
+                button("Reset").on_press(Message::ResetPatch)
+            ]);
+        }
+        col.into()
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced::subscription::events().map(Message::EventOccurred)
     }
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
-            Message::NextPatch if self.index < self.patches.len() - 1 => self.index += 1,
-            Message::PreviousPatch if self.index > 0 => self.index -= 1,
-            _ => return Command::none()
+            Message::NextPatch => self.change(1),
+            Message::PreviousPatch => self.change(-1),
+            Message::ResetPatch => self.reset(),
+            Message::EventOccurred(event) => {
+                match event {
+                    Event::Window(window::Event::Resized { width, height }) => {
+                        self.screen_width = width;
+                        self.screen_height = height;
+                    },
+                    Event::Mouse(mouse::Event::ButtonPressed(button)) => {
+                        self.show_buttons = false;
+                        match button {
+                            mouse::Button::Left => self.change(1),
+                            mouse::Button::Right => self.change(-1),
+                            _ => self.show_buttons = true
+                        }
+                    },
+                    _ => {}
+                }
+            }
         }
-        self.send();
         Command::none()
     }
 }
