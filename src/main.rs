@@ -115,6 +115,7 @@ struct PatchState {
     screen_height: u32,
     screen_width: u32,
     show_buttons: bool,
+    mouse_down: bool,
     exit: bool
 }
 
@@ -169,6 +170,7 @@ pub enum Message {
     PreviousPatch,
     ResetPatch,
     QuitApplication,
+    MouseHeld,
     EventOccurred(iced_native::Event)
 }
 
@@ -178,6 +180,8 @@ use iced::executor;
 use iced::Subscription;
 use iced_native::{window, mouse, Event, Length, alignment};
 use iced::window::set_mode;
+use std::time::Duration;
+use iced::time;
 
 impl Application for PatchState {
     type Message = Message;
@@ -187,7 +191,16 @@ impl Application for PatchState {
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         let command = set_mode(window::Mode::Fullscreen);
-        (Self { patches: flags.patches, index: 0, tx: flags.tx, screen_height: 100, screen_width: 100, show_buttons: false, exit: false }, command)
+        (Self {
+            patches: flags.patches,
+            index: 0,
+            tx: flags.tx,
+            screen_height: 100,
+            screen_width: 100,
+            show_buttons: false,
+            exit: false,
+            mouse_down: false
+        }, command)
     }
 
     fn title(&self) -> String {
@@ -245,7 +258,13 @@ impl Application for PatchState {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        iced::subscription::events().map(Message::EventOccurred)
+        let events = iced::subscription::events().map(Message::EventOccurred);
+        if self.mouse_down {
+            let timeout = time::every(Duration::from_millis(1500)).map(|_| Message::MouseHeld);
+            Subscription::batch([events, timeout])
+        } else {
+            events
+        }
     }
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
@@ -254,21 +273,38 @@ impl Application for PatchState {
             Message::PreviousPatch => self.change(-1),
             Message::ResetPatch => self.reset(),
             Message::QuitApplication => self.exit = true,
+            Message::MouseHeld => {
+                if self.mouse_down {
+                    self.mouse_down = false;
+                    self.show_buttons = !self.show_buttons;
+                }
+            },
             Message::EventOccurred(event) => {
                 match event {
                     Event::Window(window::Event::Resized { width, height }) => {
                         self.screen_width = width;
                         self.screen_height = height;
                     },
-                    Event::Mouse(mouse::Event::ButtonPressed(button)) => {
-                        if self.show_buttons {
-                            self.show_buttons = false;
-                        } else {
-                            match button {
-                                mouse::Button::Left => self.change(1),
-                                mouse::Button::Right => self.change(-1),
-                                _ => self.show_buttons = true
-                            }
+                    Event::Mouse(mouse) => {
+                        match mouse {
+                            mouse::Event::ButtonPressed(_) => {
+                                self.mouse_down = true;
+                            },
+                            mouse::Event::ButtonReleased(button) => {
+                                if self.mouse_down {
+                                    self.mouse_down = false;
+                                    if self.show_buttons {
+                                        self.show_buttons = false;
+                                    } else {
+                                        match button {
+                                            mouse::Button::Left => self.change(1),
+                                            mouse::Button::Right => self.change(-1),
+                                            _ => self.show_buttons = true
+                                        }
+                                    }
+                                }
+                            },
+                            _ => {}
                         }
                     },
                     _ => {}
