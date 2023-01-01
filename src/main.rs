@@ -175,6 +175,7 @@ use iced::{Application, Command, Theme, Settings, Element, Alignment};
 use iced::executor;
 use iced::Subscription;
 use iced_native::{window, mouse, Event, Length, alignment};
+use iced::window::set_mode;
 
 impl Application for PatchState {
     type Message = Message;
@@ -183,8 +184,7 @@ impl Application for PatchState {
     type Theme = Theme;
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
-        let command = Command::none();
-        //TODO let command = window::set_mode(window::Mode::Fullscreen);
+        let command = set_mode(window::Mode::Fullscreen);
         (Self { patches: flags.patches, index: 0, tx: flags.tx, screen_height: 100, screen_width: 100, show_buttons: false }, command)
     }
 
