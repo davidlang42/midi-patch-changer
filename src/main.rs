@@ -18,6 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         cli::run(&mut device);
     } else {
         // gui
+
         let midi_in = args.get(1).ok_or("The first argument should be the MIDI-IN device (or '-' for no input device)")?;
         let midi_out = args.get(2).ok_or("The second argument should be the MIDI-OUT device")?;
         let device = midi::ThruDevice::new(if midi_in == "-" { None } else { Some(midi_in) }, midi_out, args.get(3))?;
