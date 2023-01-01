@@ -191,7 +191,7 @@ impl Application for PatchState {
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         let command = set_mode(window::Mode::Fullscreen);
-        (Self {
+        let mut state = Self {
             patches: flags.patches,
             index: 0,
             tx: flags.tx,
@@ -200,7 +200,9 @@ impl Application for PatchState {
             show_buttons: false,
             exit: false,
             mouse_down: false
-        }, command)
+        };
+        state.reset(); // to send first patch
+        (state, command)
     }
 
     fn title(&self) -> String {
