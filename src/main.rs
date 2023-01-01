@@ -114,7 +114,8 @@ struct PatchState {
     tx: mpsc::Sender<u8>,
     screen_height: u32,
     screen_width: u32,
-    show_buttons: bool
+    show_buttons: bool,
+    exit: bool
 }
 
 impl PatchState {
@@ -167,6 +168,7 @@ pub enum Message {
     NextPatch,
     PreviousPatch,
     ResetPatch,
+    QuitApplication,
     EventOccurred(iced_native::Event)
 }
 
@@ -185,7 +187,7 @@ impl Application for PatchState {
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         let command = set_mode(window::Mode::Fullscreen);
-        (Self { patches: flags.patches, index: 0, tx: flags.tx, screen_height: 100, screen_width: 100, show_buttons: false }, command)
+        (Self { patches: flags.patches, index: 0, tx: flags.tx, screen_height: 100, screen_width: 100, show_buttons: false, exit: false }, command)
     }
 
     fn title(&self) -> String {
@@ -215,6 +217,9 @@ impl Application for PatchState {
                     .width(Length::Fill),
                 button(text("Reset").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
                     .on_press(Message::ResetPatch)
+                    .width(Length::Fill),
+                button(text("QUIT").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
+                    .on_press(Message::QuitApplication)
                     .width(Length::Fill)
             ]
             .spacing(10)
@@ -235,6 +240,10 @@ impl Application for PatchState {
             .into()
     }
 
+    fn should_exit(&self) -> bool {
+        self.exit
+    }
+
     fn subscription(&self) -> Subscription<Message> {
         iced::subscription::events().map(Message::EventOccurred)
     }
@@ -244,6 +253,7 @@ impl Application for PatchState {
             Message::NextPatch => self.change(1),
             Message::PreviousPatch => self.change(-1),
             Message::ResetPatch => self.reset(),
+            Message::QuitApplication => self.exit = true,
             Message::EventOccurred(event) => {
                 match event {
                     Event::Window(window::Event::Resized { width, height }) => {
