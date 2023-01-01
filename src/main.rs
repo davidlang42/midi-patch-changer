@@ -4,7 +4,6 @@ use std::error::Error;
 use std::sync::mpsc;
 use std::thread;
 use std::io::{Read, Write};
-use console::{Term, Key};
 
 //TODO send proper midi messages to avoid race condition between patch change commands and midi-thru from input device
 //use wmidi::MidiMessage;
@@ -45,34 +44,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         thread::Builder::new().name(format!("midi-in")).spawn(move || read_into_queue(&mut input, tx_clone))?;
     }
     // run patch change UI
-    let term = Term::stdout();
-    let mut p = 0;
-    if patches.len() == 0 {
-        println!("**NO PATCHES**");
-    } else {
-        println!("{}", send_patch(&patches, p, &tx));
-    }
-    while let Ok(k) = term.read_key() {
-        match k {
-            _ if patches.len() == 0 => {
-                println!("**NO PATCHES**");
-            },
-            Key::Backspace if p == 0 => {
-                println!("**FIRST PATCH**");
-            },
-            Key::Backspace => {
-                p -= 1;
-                println!("<<< {}", send_patch(&patches, p, &tx));
-            },
-            _ if p == patches.len() - 1 => {
-                println!("**LAST PATCH**");
-            },
-            _ => {
-                p += 1;
-                println!("{}", send_patch(&patches, p, &tx));
-            }
-        };
-    }
+    PatchState::run(Settings::with_flags(InitialFlags {
+        patches
+    }));
     Ok(())
 }
 
@@ -124,4 +98,98 @@ fn write_from_queue(f: &mut fs::File, rx: mpsc::Receiver<u8>) {
         }
     }
     panic!("Writing from queue has finished.");
+}
+
+impl Patch {
+    fn new(name: &str) -> Self {
+        Patch {
+            name: String::from(name),
+            bank_msb: None,
+            bank_lsb: None,
+            program: None,
+            midi: None
+        }
+    }
+}
+
+// GUI
+
+struct InitialFlags {
+    patches: Vec<Patch>
+    //tx: &mpsc::Sender<u8>
+}
+
+struct PatchState {
+    patches: Vec<Patch>,
+    index: usize
+}
+
+impl PatchState {
+    fn current(&self) -> String {
+        format!("#{} {}", self.index + 1, self.patches[self.index].name)
+    }
+
+    // fn next(&self) -> String {
+
+    // }
+
+    // fn previous(&self) -> String {
+
+    // }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Message {
+    NextPatch,
+    PreviousPatch
+}
+
+use iced::widget::{button, column, text};
+use iced::{Application, Command, Theme, Settings, Element};
+use iced::executor;
+
+impl Application for PatchState {
+    type Message = Message;
+    type Executor = executor::Default;
+    type Flags = InitialFlags;
+    type Theme = Theme;
+
+    fn new(flags: Self::Flags) -> (Self, Command<Message>) {
+        (Self { patches: flags.patches, index: 0 }, Command::none())
+    }
+
+    fn title(&self) -> String {
+        String::from("MIDI Patch Changer") //TODO include input/output device names & patch list name?
+    }
+
+    fn view(&self) -> Element<Message> {
+        // We use a column: a simple vertical layout
+        column![
+            // The increment button. We tell it to produce an
+            // `IncrementPressed` message when pressed
+            button("+").on_press(Message::NextPatch),
+
+            // We show the value of the counter here
+            text(self.current()).size(50),
+
+            // The decrement button. We tell it to produce a
+            button("-").on_press(Message::PreviousPatch),
+        ].into()
+    }
+
+    fn update(&mut self, message: Message) -> iced::Command<Message> {
+        match message {
+            Message::NextPatch => {
+                if self.index < self.patches.len() - 1 {
+                    self.index += 1;
+                }
+            },
+            Message::PreviousPatch => {
+                if self.index > 0 {
+                    self.index -= 1;
+                }
+            }
+        }
+        Command::none()
+    }
 }
