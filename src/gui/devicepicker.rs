@@ -3,7 +3,7 @@ use iced::{Application, Command, Theme, Element};
 use iced::executor;
 use iced::Subscription;
 use iced_native::{window, Event};
-use iced::window::set_mode;
+//use iced::window::set_mode;
 use std::sync::mpsc;
 
 pub struct DevicePicker {
