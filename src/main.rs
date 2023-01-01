@@ -36,12 +36,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         None => Vec::new()
     };
     // open devices & initiate midi-thru
-    let mut input = fs::File::options().read(true).open(midi_in).map_err(|e| format!("Cannot open MIDI IN '{}': {}", midi_in, e))?;
-    let mut output = fs::File::options().write(true).open(midi_out).map_err(|e| format!("Cannot open MIDI OUT '{}': {}", midi_out, e))?;
     let (tx, rx) = mpsc::channel();
     let tx_clone = tx.clone();
+    let mut output = fs::File::options().write(true).open(midi_out).map_err(|e| format!("Cannot open MIDI OUT '{}': {}", midi_out, e))?;
     thread::Builder::new().name(format!("midi-out")).spawn(move || write_from_queue(&mut output, rx))?;
-    thread::Builder::new().name(format!("midi-in")).spawn(move || read_into_queue(&mut input, tx_clone))?;
+    if midi_in != "-" {
+        let mut input = fs::File::options().read(true).open(midi_in).map_err(|e| format!("Cannot open MIDI IN '{}': {}", midi_in, e))?;
+        thread::Builder::new().name(format!("midi-in")).spawn(move || read_into_queue(&mut input, tx_clone))?;
+    }
     // run patch change UI
     let term = Term::stdout();
     let mut p = 0;
