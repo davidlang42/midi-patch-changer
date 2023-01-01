@@ -1,6 +1,7 @@
 use std::env;
 use std::error::Error;
 use iced::{Application, Settings};
+use std::sync::mpsc;
 
 mod midi;
 mod cli;
@@ -18,15 +19,18 @@ fn main() -> Result<(), Box<dyn Error>> {
         cli::run(&mut device);
     } else {
         // gui
-        let flags = gui::devicepicker::Flags {//TODO is there a better way to reference this?
+        let (tx, rx) = mpsc::channel();
+        let flags = gui::devicepicker::Flags {
             options: vec![String::from("Test 1"), String::from("Test 2"), String::from("Test 3")],//TODO
-            midi_in: None,
-            midi_out: String::new(),
-            patch_file: String::new()
+            result_sender: tx
         };
         gui::DevicePicker::run(Settings::with_flags(flags)).map_err(|e| format!("GUI error: {}", e))?;
-        //println!()
-        //gui::PatchSystem::run(Settings::with_flags(device)).map_err(|e| format!("GUI error: {}", e))?;
+        if let Ok(device) = rx.try_recv() {
+            println!("{}", device);
+            //gui::PatchSystem::run(Settings::with_flags(device)).map_err(|e| format!("GUI error: {}", e))?;
+        } else {
+            println!("No devices selected.");
+        }
     }
     Ok(())
 }

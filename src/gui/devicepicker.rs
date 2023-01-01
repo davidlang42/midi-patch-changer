@@ -4,27 +4,28 @@ use iced::executor;
 use iced::Subscription;
 use iced_native::{window, Event};
 use iced::window::set_mode;
+use std::sync::mpsc;
 
 pub struct DevicePicker {
     options: Vec<String>,
-    midi_in: Option<String>,
+    midi_in: String,
     midi_out: String,
     patch_file: String,
     exit: bool,
     screen_width: u32,
-    screen_height: u32
+    screen_height: u32,
+    result_sender: mpsc::Sender<String>
 }
 
 pub struct Flags {
     pub options: Vec<String>,
-    pub midi_in: Option<String>,
-    pub midi_out: String,
-    pub patch_file: String
+    pub result_sender: mpsc::Sender<String>
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Done,
+    Start,
+    Quit,
     //PatchFileBrowse,
     PatchFileChanged(String),
     MidiInChanged(String),
@@ -41,9 +42,10 @@ impl Application for DevicePicker {
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
         (Self {
             options: flags.options,
-            midi_in: flags.midi_in,
-            midi_out: flags.midi_out,
-            patch_file: flags.patch_file,
+            result_sender: flags.result_sender,
+            midi_in: String::new(),
+            midi_out: String::new(),
+            patch_file: String::new(),
             exit: false,
             screen_width: 100,
             screen_height: 100
@@ -65,7 +67,7 @@ impl Application for DevicePicker {
         column![
             row![
                 text("MIDI IN: ").size(size),
-                pick_list(&self.options, self.midi_in.clone(), Message::MidiInChanged)
+                pick_list(&self.options, Some(self.midi_in.clone()), Message::MidiInChanged)
             ],
             row![
                 text("MIDI OUT: ").size(size),
@@ -75,7 +77,10 @@ impl Application for DevicePicker {
                 text("Patches: ").size(size),
                 text_input("Path to file", &self.patch_file, Message::PatchFileChanged)
             ],
-            button("Start").on_press(Message::Done)
+            row![
+                button("Start").on_press(Message::Start),
+                button("Quit").on_press(Message::Quit)
+            ]
         ].into()
     }
 
@@ -91,9 +96,13 @@ impl Application for DevicePicker {
                     self.screen_height = height;
                 }
             },
-            Message::Done => self.exit = true,
+            Message::Start => {
+                self.result_sender.send(self.patch_file.clone());
+                self.exit = true;
+            },
+            Message::Quit => self.exit = true,
             Message::MidiInChanged(midi_in) => {
-                self.midi_in = Some(midi_in);//TODO handle no selection
+                self.midi_in = midi_in;//TODO handle no selection
                 //TODO avoid conflicts
             },
             Message::MidiOutChanged(midi_out) => {
