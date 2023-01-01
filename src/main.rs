@@ -16,7 +16,11 @@ fn main() -> Result<(), Box<dyn Error>> {
         // cli
         let midi_in = args.get(1).ok_or("The first argument should be the MIDI-IN device (or '-' for no input device)")?;
         let midi_out = args.get(2).ok_or("The second argument should be the MIDI-OUT device")?;
-        let mut device = midi::ThruDevice::new(if midi_in == "-" { None } else { Some(midi_in) }, midi_out, args.get(3))?;
+        let patch_file: Option<&str> = match args.get(3) {
+            Some(file) => Some(file),
+            None => None
+        };
+        let mut device = midi::ThruDevice::new(if midi_in == "-" { None } else { Some(midi_in) }, midi_out, patch_file)?;
         cli::run(&mut device);
     } else {
         // gui
@@ -31,7 +35,9 @@ fn main() -> Result<(), Box<dyn Error>> {
             result_sender: tx
         };
         gui::DevicePicker::run(Settings::with_flags(flags)).map_err(|e| format!("DevicePicker GUI error: {}", e))?;
-        if let Ok(device) = rx.try_recv() {
+        if let Ok(result) = rx.try_recv() {
+            let device = midi::ThruDevice::new(result.midi_in.as_deref(), &result.midi_out, result.patch_file.as_deref())?;
+            println!("Back");
             gui::PatchSystem::run(Settings::with_flags(device)).map_err(|e| format!("PatchSystem GUI error: {}", e))?;
         } else {
             println!("No devices selected.");

@@ -5,7 +5,6 @@ use iced::Subscription;
 use iced_native::{window, Event};
 use iced::window::set_mode;
 use std::sync::mpsc;
-use crate::midi;
 
 pub struct DevicePicker {
     midi_in_options: Vec<String>,
@@ -17,14 +16,20 @@ pub struct DevicePicker {
     exit: bool,
     screen_width: u32,
     screen_height: u32,
-    result_sender: mpsc::Sender<midi::ThruDevice>,
+    result_sender: mpsc::Sender<DeviceResult>,
     last_error: String
 }
 
 pub struct Flags {
     pub midi_options: Vec<String>,
     pub patch_options: Vec<String>,
-    pub result_sender: mpsc::Sender<midi::ThruDevice>
+    pub result_sender: mpsc::Sender<DeviceResult>
+}
+
+pub struct DeviceResult {
+    pub midi_in: Option<String>,
+    pub midi_out: String,
+    pub patch_file: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -120,18 +125,16 @@ impl Application for DevicePicker {
             },
             Message::Start => {
                 if !self.exit {
-                    match midi::ThruDevice::new(non_empty(&self.midi_in), &self.midi_out, non_empty(&self.patch_file)) {
-                        Ok(device) => {
-                            if let Err(e) = self.result_sender.send(device) {
-                                self.last_error = format!("{}", e);
-                            } else {
-                                self.exit = true;
-                            }
-                        },
-                        Err(e) => {
-                            self.last_error = format!("{}", e);
-                        }
+                    let result = DeviceResult {
+                        midi_in: non_empty(self.midi_in.clone()),
+                        midi_out: self.midi_out.clone(),
+                        patch_file: non_empty(self.patch_file.clone())
                     };
+                    if let Err(e) = self.result_sender.send(result) {
+                        self.last_error = format!("{}", e);
+                    } else {
+                        self.exit = true;
+                    }
                 }
             },
             Message::Quit => self.exit = true,
@@ -152,7 +155,7 @@ impl Application for DevicePicker {
     }
 }
 
-fn non_empty(s: &String) -> Option<&String> {
+fn non_empty(s: String) -> Option<String> {
     if s.is_empty() {
         None
     } else {

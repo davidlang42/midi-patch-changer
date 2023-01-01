@@ -53,7 +53,7 @@ pub struct ThruDevice {
 }
 
 impl ThruDevice {
-    pub fn new(midi_in: Option<&String>, midi_out: &String, patch_file: Option<&String>) -> Result<Self, Box<dyn Error>> {
+    pub fn new(midi_in: Option<&str>, midi_out: &str, patch_file: Option<&str>) -> Result<Self, Box<dyn Error>> {
         // load patches
         let patch_list: Vec<Patch> = match patch_file {
             Some(file) => {
