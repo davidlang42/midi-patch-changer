@@ -46,7 +46,7 @@ fn list_files(root: &str, prefix: &str) -> Result<Vec<String>, Box<dyn Error>> {
         let mut files = Vec::new();
         for entry in fs::read_dir(root)? {
             let path = entry?.path();
-            if path.is_file() && path.file_name().unwrap().to_string_lossy().starts_with(prefix) {
+            if !path.is_dir() && path.file_name().unwrap().to_string_lossy().starts_with(prefix) {
                 files.push(path.display().to_string());
             }
         }
