@@ -1,9 +1,9 @@
 use iced::widget::{button, row, column, text, pick_list};
-use iced::{Application, Command, Theme, Element};
+use iced::{Application, Command, Theme, Element, Alignment};
 use iced::executor;
 use iced::Subscription;
-use iced_native::{window, Event};
-//use iced::window::set_mode;
+use iced_native::{window, Event, Length, alignment};
+use iced::window::set_mode;
 use std::sync::mpsc;
 
 pub struct DevicePicker {
@@ -36,7 +36,6 @@ pub struct DeviceResult {
 pub enum Message {
     Start,
     Quit,
-    //PatchFileBrowse,
     PatchFileChanged(String),
     MidiInChanged(String),
     MidiOutChanged(String),
@@ -75,8 +74,7 @@ impl Application for DevicePicker {
             screen_width: 100,
             screen_height: 100,
             last_error: String::new()
-        //TODO }, set_mode(window::Mode::Fullscreen))
-        }, Command::none())
+        }, set_mode(window::Mode::Fullscreen))
     }
 
     fn title(&self) -> String {
@@ -88,27 +86,36 @@ impl Application for DevicePicker {
     }
 
     fn view(&self) -> Element<Message> {
-        let height = (self.screen_height / 3) as u16;
+        let height = (self.screen_height / 4) as u16;
         let size = height / 3;
         column![
             row![
-                text("MIDI IN: ").size(size),
+                text("MIDI IN: ").size(size).height(Length::Fill).vertical_alignment(alignment::Vertical::Center),
                 pick_list(&self.midi_in_options, Some(self.midi_in.clone()), Message::MidiInChanged)
-            ],
+                    .text_size(size).width(Length::Fill)
+            ].height(Length::Fill),
             row![
-                text("MIDI OUT: ").size(size),
+                text("MIDI OUT: ").size(size).height(Length::Fill).vertical_alignment(alignment::Vertical::Center),
                 pick_list(&self.midi_out_options, Some(self.midi_out.clone()), Message::MidiOutChanged)
-            ],
+                    .text_size(size).width(Length::Fill)
+            ].height(Length::Fill),
             row![
-                text("Patches: ").size(size),
+                text("Patches: ").size(size).height(Length::Fill).vertical_alignment(alignment::Vertical::Center),
                 pick_list(&self.patch_options, Some(self.patch_file.clone()), Message::PatchFileChanged)
-            ],
+                    .text_size(size).width(Length::Fill)
+            ].height(Length::Fill),
             row![
-                button("Start").on_press(Message::Start),
-                button("Quit").on_press(Message::Quit)
-            ],
-            text(&self.last_error).size(size / 2)
-        ].into()
+                button(centred_text("Start", size))
+                    .on_press(Message::Start)
+                    .width(Length::Fill),
+                button(centred_text("Quit", size))
+                    .on_press(Message::Quit)
+                    .width(Length::Fill)
+            ].spacing(10).height(Length::Fill)
+        ].padding(10)
+        .spacing(10)
+        .align_items(Alignment::Fill)
+        .into()
     }
 
     fn should_exit(&self) -> bool {
@@ -161,4 +168,8 @@ fn non_empty(s: String) -> Option<String> {
     } else {
         Some(s)
     }
+}
+
+fn centred_text<T>(s: &str, size: u16) -> Element<T> {
+    text(s).size(size).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center).into()
 }
