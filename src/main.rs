@@ -19,7 +19,7 @@ enum Mode {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() >= 3 {
-        // cli patches
+        // cli/gui patches
         let mode = if args[1] == "cli" {
             Mode::Cli
         } else if args[1] == "gui" {

@@ -146,16 +146,18 @@ impl Application for DevicePicker {
             },
             Message::Quit => self.exit = true,
             Message::MidiInChanged(midi_in) => {
-                self.midi_in = midi_in;//TODO handle no selection
-                //TODO avoid conflicts
+                if midi_in != self.midi_out {
+                    self.midi_in = midi_in;
+                }
             },
             Message::MidiOutChanged(midi_out) => {
                 self.midi_out = midi_out;
-                //TODO avoid conflicts
+                if self.midi_in == self.midi_out {
+                    self.midi_in = String::new();
+                }
             },
             Message::PatchFileChanged(patch_file) => {
                 self.patch_file = patch_file;
-                //TODO what if its blank?
             }
         }
         Command::none()
