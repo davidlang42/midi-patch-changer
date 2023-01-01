@@ -8,8 +8,9 @@ use std::sync::mpsc;
 use crate::midi;
 
 pub struct DevicePicker {
-    midi_options: Vec<String>,
+    midi_in_options: Vec<String>,
     midi_in: String,
+    midi_out_options: Vec<String>,
     midi_out: String,
     patch_options: Vec<String>,
     patch_file: String,
@@ -53,9 +54,14 @@ impl Application for DevicePicker {
             0 => String::new(),
             _ => flags.patch_options[0].clone()
         };
+        let mut midi_in_options = flags.midi_options.clone();
+        midi_in_options.insert(0, String::new());
+        let mut patch_options = flags.patch_options;
+        patch_options.insert(0, String::new());
         (Self {
-            midi_options: flags.midi_options,
-            patch_options: flags.patch_options,
+            midi_in_options,
+            midi_out_options: flags.midi_options,
+            patch_options,
             result_sender: flags.result_sender,
             midi_in,
             midi_out,
@@ -82,11 +88,11 @@ impl Application for DevicePicker {
         column![
             row![
                 text("MIDI IN: ").size(size),
-                pick_list(&self.midi_options, Some(self.midi_in.clone()), Message::MidiInChanged)
+                pick_list(&self.midi_in_options, Some(self.midi_in.clone()), Message::MidiInChanged)
             ],
             row![
                 text("MIDI OUT: ").size(size),
-                pick_list(&self.midi_options, Some(self.midi_out.clone()), Message::MidiOutChanged)
+                pick_list(&self.midi_out_options, Some(self.midi_out.clone()), Message::MidiOutChanged)
             ],
             row![
                 text("Patches: ").size(size),
