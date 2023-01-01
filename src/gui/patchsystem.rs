@@ -61,7 +61,7 @@ impl Application for PatchSystem {
             .size(small)
             .height(Length::Units(small))
             .horizontal_alignment(alignment::Horizontal::Center);
-        let middle = text(match self.device.current_patch() { Some((number, patch)) => format!("#{} {}", number, patch.name), None => String::from("")})
+        let middle = text(match self.device.current_patch() { Some((number, patch)) => format!("#{} {}", number, patch.name), None => String::from("No Patches")})
             .size(big)
             .height(Length::Fill)
             .vertical_alignment(alignment::Vertical::Center)
