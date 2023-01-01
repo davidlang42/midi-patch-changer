@@ -45,8 +45,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
     // run patch change UI
     PatchState::run(Settings::with_flags(InitialFlags {
-        patches
-    }));
+        patches,
+        tx
+    })).map_err(|e| format!("GUI error: {}", e))?;
     Ok(())
 }
 
@@ -100,28 +101,17 @@ fn write_from_queue(f: &mut fs::File, rx: mpsc::Receiver<u8>) {
     panic!("Writing from queue has finished.");
 }
 
-impl Patch {
-    fn new(name: &str) -> Self {
-        Patch {
-            name: String::from(name),
-            bank_msb: None,
-            bank_lsb: None,
-            program: None,
-            midi: None
-        }
-    }
-}
-
 // GUI
 
 struct InitialFlags {
-    patches: Vec<Patch>
-    //tx: &mpsc::Sender<u8>
+    patches: Vec<Patch>,
+    tx: mpsc::Sender<u8>
 }
 
 struct PatchState {
     patches: Vec<Patch>,
-    index: usize
+    index: usize,
+    tx: mpsc::Sender<u8>
 }
 
 impl PatchState {
@@ -129,13 +119,25 @@ impl PatchState {
         format!("#{} {}", self.index + 1, self.patches[self.index].name)
     }
 
-    // fn next(&self) -> String {
+    fn next(&self) -> String {
+        if self.index < self.patches.len() - 1 {
+            format!("{}", self.patches[self.index + 1].name)
+        } else {
+            String::from("")
+        }
+    }
 
-    // }
+    fn previous(&self) -> String {
+        if self.index > 0 {
+            format!("{}", self.patches[self.index - 1].name)
+        } else {
+            String::from("")
+        }
+    }
 
-    // fn previous(&self) -> String {
-
-    // }
+    fn send(&self) {
+        send_patch(&self.patches, self.index, &self.tx);
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -155,7 +157,9 @@ impl Application for PatchState {
     type Theme = Theme;
 
     fn new(flags: Self::Flags) -> (Self, Command<Message>) {
-        (Self { patches: flags.patches, index: 0 }, Command::none())
+        let command = Command::none();
+        //TODO let command = window::set_mode(window::Mode::Fullscreen);
+        (Self { patches: flags.patches, index: 0, tx: flags.tx }, command)
     }
 
     fn title(&self) -> String {
@@ -165,31 +169,21 @@ impl Application for PatchState {
     fn view(&self) -> Element<Message> {
         // We use a column: a simple vertical layout
         column![
-            // The increment button. We tell it to produce an
-            // `IncrementPressed` message when pressed
-            button("+").on_press(Message::NextPatch),
-
-            // We show the value of the counter here
+            button("Previous Patch").on_press(Message::PreviousPatch),
+            text(self.previous()).size(20),
             text(self.current()).size(50),
-
-            // The decrement button. We tell it to produce a
-            button("-").on_press(Message::PreviousPatch),
+            text(self.next()).size(20),
+            button("Next Patch").on_press(Message::NextPatch),
         ].into()
     }
 
     fn update(&mut self, message: Message) -> iced::Command<Message> {
         match message {
-            Message::NextPatch => {
-                if self.index < self.patches.len() - 1 {
-                    self.index += 1;
-                }
-            },
-            Message::PreviousPatch => {
-                if self.index > 0 {
-                    self.index -= 1;
-                }
-            }
+            Message::NextPatch if self.index < self.patches.len() - 1 => self.index += 1,
+            Message::PreviousPatch if self.index > 0 => self.index -= 1,
+            _ => return Command::none()
         }
+        self.send();
         Command::none()
     }
 }
