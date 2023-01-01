@@ -174,7 +174,7 @@ use iced::widget::{button, row, column, text};
 use iced::{Application, Command, Theme, Settings, Element, Alignment};
 use iced::executor;
 use iced::Subscription;
-use iced_native::{window, mouse, Event, Length};
+use iced_native::{window, mouse, Event, Length, alignment};
 
 impl Application for PatchState {
     type Message = Message;
@@ -193,22 +193,40 @@ impl Application for PatchState {
     }
 
     fn view(&self) -> Element<Message> {
+        let small = (self.screen_height / 8) as u16; // 1/8 of screen height
+        let big = (self.screen_height as u16 - 2 * small) / 2; // space for 2 lines of text
         let mut col = column![
-            text(self.previous()).size(20),
-            text(self.current()).size(50),
-            text(self.next()).size(20)
+            text(self.previous())
+                .size(small)
+                .height(Length::Units(small))
+                .horizontal_alignment(alignment::Horizontal::Center),
+            text(self.current())
+                .size(big)
+                .height(Length::Fill)
+                .vertical_alignment(alignment::Vertical::Center)
+                .horizontal_alignment(alignment::Horizontal::Center),
+            text(self.next())
+                .size(small)
+                .height(Length::Units(small))
+                .horizontal_alignment(alignment::Horizontal::Center)
         ]
-        .align_items(Alignment::Fill)
-        .height(Length::Units(self.screen_height as u16))
-        .width(Length::Units(self.screen_width as u16));
+        // .height(Length::Units(self.screen_height as u16))
+        .width(Length::Units(self.screen_width as u16))
+        ;
         if self.show_buttons {
             col = col.push(row![
-                button("Next Patch").on_press(Message::NextPatch),
-                button("Previous Patch").on_press(Message::PreviousPatch),
-                button("Reset").on_press(Message::ResetPatch)
-            ]);
+                button("Next Patch").on_press(Message::NextPatch).width(Length::Fill),
+                button("Previous Patch").on_press(Message::PreviousPatch).width(Length::Fill),
+                button("Reset").on_press(Message::ResetPatch).width(Length::Fill)
+            ]
+            .spacing(10)
+            .width(Length::Units(self.screen_width as u16))
+            .align_items(Alignment::Fill));
         }
-        col.into()
+        col
+        .padding(10)
+        .align_items(Alignment::Fill)
+        .into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
