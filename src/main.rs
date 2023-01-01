@@ -195,38 +195,44 @@ impl Application for PatchState {
     fn view(&self) -> Element<Message> {
         let small = (self.screen_height / 8) as u16; // 1/8 of screen height
         let big = (self.screen_height as u16 - 2 * small) / 2; // space for 2 lines of text
-        let mut col = column![
-            text(self.previous())
-                .size(small)
-                .height(Length::Units(small))
-                .horizontal_alignment(alignment::Horizontal::Center),
-            text(self.current())
-                .size(big)
-                .height(Length::Fill)
-                .vertical_alignment(alignment::Vertical::Center)
-                .horizontal_alignment(alignment::Horizontal::Center),
+        let top = text(if self.show_buttons { String::from("Click to exit menu") } else { self.previous() })
+            .size(small)
+            .height(Length::Units(small))
+            .horizontal_alignment(alignment::Horizontal::Center);
+        let middle = text(self.current())
+            .size(big)
+            .height(Length::Fill)
+            .vertical_alignment(alignment::Vertical::Center)
+            .horizontal_alignment(alignment::Horizontal::Center);
+        let bottom: Element<Message> = if self.show_buttons {
+            let button_text = small / 2;
+            row![
+                button(text("Next Patch").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
+                    .on_press(Message::NextPatch)
+                    .width(Length::Fill),
+                button(text("Previous Patch").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
+                    .on_press(Message::PreviousPatch)
+                    .width(Length::Fill),
+                button(text("Reset").size(button_text).horizontal_alignment(alignment::Horizontal::Center).vertical_alignment(alignment::Vertical::Center))
+                    .on_press(Message::ResetPatch)
+                    .width(Length::Fill)
+            ]
+            .spacing(10)
+            .height(Length::Units(small))
+            .align_items(Alignment::Fill)
+            .into()
+        } else {
             text(self.next())
                 .size(small)
                 .height(Length::Units(small))
                 .horizontal_alignment(alignment::Horizontal::Center)
-        ]
-        // .height(Length::Units(self.screen_height as u16))
-        .width(Length::Units(self.screen_width as u16))
-        ;
-        if self.show_buttons {
-            col = col.push(row![
-                button("Next Patch").on_press(Message::NextPatch).width(Length::Fill),
-                button("Previous Patch").on_press(Message::PreviousPatch).width(Length::Fill),
-                button("Reset").on_press(Message::ResetPatch).width(Length::Fill)
-            ]
-            .spacing(10)
+                .into()
+        };
+        column![top, middle, bottom]
             .width(Length::Units(self.screen_width as u16))
-            .align_items(Alignment::Fill));
-        }
-        col
-        .padding(10)
-        .align_items(Alignment::Fill)
-        .into()
+            .padding(10)
+            .align_items(Alignment::Fill)
+            .into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
@@ -245,11 +251,14 @@ impl Application for PatchState {
                         self.screen_height = height;
                     },
                     Event::Mouse(mouse::Event::ButtonPressed(button)) => {
-                        self.show_buttons = false;
-                        match button {
-                            mouse::Button::Left => self.change(1),
-                            mouse::Button::Right => self.change(-1),
-                            _ => self.show_buttons = true
+                        if self.show_buttons {
+                            self.show_buttons = false;
+                        } else {
+                            match button {
+                                mouse::Button::Left => self.change(1),
+                                mouse::Button::Right => self.change(-1),
+                                _ => self.show_buttons = true
+                            }
                         }
                     },
                     _ => {}
