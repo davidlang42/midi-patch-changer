@@ -1,3 +1,0 @@
-{"name":"Patch A", "bank_msb":87, "bank_lsb":64, "program":70},
-{"name":"Patch B", "bank_msb":87, "bank_lsb":65, "program":12},
-{"name":"Patch C", "bank_msb":87, "bank_lsb":71, "program":75}
