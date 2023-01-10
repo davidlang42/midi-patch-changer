@@ -12,6 +12,7 @@ use std::error::Error;
 #[derive(Serialize, Deserialize)]
 pub struct Patch {
     pub name: String,
+    channel: Option<u8>,
     bank_msb: Option<u8>,
     bank_lsb: Option<u8>,
     program: Option<u8>,
@@ -20,18 +21,22 @@ pub struct Patch {
 
 impl Patch {
     pub fn send(&self, tx: &mpsc::Sender<u8>) {
+        let channel = match self.channel {
+            Some(ch) if ch < 16 => ch,
+            _ => 0
+        };
         if let Some(msb) = self.bank_msb {
-            tx.send(176).unwrap(); // B0
+            tx.send(176 + channel).unwrap(); // B0
             tx.send(0).unwrap(); // 00
             tx.send(msb).unwrap();
         }
         if let Some(lsb) = self.bank_lsb {
-            tx.send(176).unwrap(); // B0
+            tx.send(176 + channel).unwrap(); // B0
             tx.send(32).unwrap(); // 20
             tx.send(lsb).unwrap();
         }
         if let Some(prog) = self.program {
-            tx.send(192).unwrap(); // C0
+            tx.send(192 + channel).unwrap(); // C0
             tx.send(prog).unwrap();
         }
         if let Some(midi_string) = &self.midi {
