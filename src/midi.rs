@@ -3,11 +3,7 @@ use std::fs;
 use std::thread;
 use std::io::{Read, Write};
 use std::error::Error;
-
-//TODO send proper midi messages to avoid race condition between patch change commands and midi-thru from input device
-//use wmidi::MidiMessage;
-//[dependencies]
-//wmidi = "4.0.6"
+use wmidi::{MidiMessage, ControlFunction, FromBytesError, Channel, U7};
 
 #[derive(Serialize, Deserialize)]
 pub struct Patch {
@@ -15,44 +11,29 @@ pub struct Patch {
     channel: Option<u8>,
     bank_msb: Option<u8>,
     bank_lsb: Option<u8>,
-    program: Option<u8>,
-    midi: Option<String> // space separated hex bytes of arbitrary midi commands
+    program: Option<u8>
 }
 
 impl Patch {
-    pub fn send(&self, tx: &mpsc::Sender<u8>) {
-        let channel = match self.channel {
+    pub fn send(&self, tx: &mpsc::Sender<MidiMessage<'static>>) {
+        let channel = Channel::from_index(match self.channel {
             Some(ch) if ch < 16 => ch,
             _ => 0
-        };
+        }).unwrap();
         if let Some(msb) = self.bank_msb {
-            tx.send(176 + channel).unwrap(); // B0
-            tx.send(0).unwrap(); // 00
-            tx.send(msb).unwrap();
+            tx.send(MidiMessage::ControlChange(channel, ControlFunction::BANK_SELECT, U7::from_u8_lossy(msb))).unwrap();
         }
         if let Some(lsb) = self.bank_lsb {
-            tx.send(176 + channel).unwrap(); // B0
-            tx.send(32).unwrap(); // 20
-            tx.send(lsb).unwrap();
+            tx.send(MidiMessage::ControlChange(channel, ControlFunction::BANK_SELECT_LSB, U7::from_u8_lossy(lsb))).unwrap();
         }
         if let Some(prog) = self.program {
-            tx.send(192 + channel).unwrap(); // C0
-            tx.send(prog).unwrap();
-        }
-        if let Some(midi_string) = &self.midi {
-            for hex in midi_string.split(" ") {
-                if let Ok(byte) = u8::from_str_radix(hex, 16) {
-                    tx.send(byte).unwrap();
-                } else {
-                    println!("'{}' is not a valid HEX MIDI byte (00-FF)", hex);
-                }
-            }
+            tx.send(MidiMessage::ProgramChange(channel, U7::from_u8_lossy(prog))).unwrap();
         }
     }
 }
 
 pub struct ThruDevice {
-    patch_sender: mpsc::Sender<u8>,
+    patch_sender: mpsc::Sender<MidiMessage<'static>>,
     patch_list: Vec<Patch>,
     patch_index: usize
 }
@@ -145,19 +126,38 @@ impl ThruDevice {
     }
 }
 
-fn read_into_queue(f: &mut fs::File, tx: mpsc::Sender<u8>) {
+fn read_into_queue(f: &mut fs::File, tx: mpsc::Sender<MidiMessage>) {
     let mut buf: [u8; 1] = [0; 1];
+    let mut bytes = Vec::new();
     while f.read_exact(&mut buf).is_ok() {
-        if tx.send(buf[0]).is_err() {
-            panic!("Error writing to queue.");
+        bytes.push(buf[0]);
+        match MidiMessage::try_from(bytes.as_slice()) {
+            Ok(message) => {
+                // message complete, send to queue
+                if tx.send(message.to_owned()).is_err() {
+                    panic!("Error sending to queue.");
+                }
+                bytes.clear();
+            },
+            Err(FromBytesError::NoBytes) | Err(FromBytesError::NoSysExEndByte) | Err(FromBytesError::NotEnoughBytes) => {
+                // wait for more bytes
+            }, 
+            _ => {
+                // invalid message, clear and wait for next message
+                bytes.clear();
+            }
         }
     }
     println!("NOTE: Input device is not connected.");
 }
 
-fn write_from_queue(f: &mut fs::File, rx: mpsc::Receiver<u8>) {
-    for received in rx {
-        if f.write_all(&[received]).is_err() {
+fn write_from_queue(f: &mut fs::File, rx: mpsc::Receiver<MidiMessage>) {
+    for mut received in rx {
+        let mut buf = Vec::new();
+        if received.read_to_end(&mut buf).is_err() {
+            panic!("Error writing midi message.")
+        }
+        if f.write_all(&buf).is_err() {
             panic!("Error writing to device.")
         }
         if f.flush().is_err() {
