@@ -78,6 +78,7 @@ fn list_files(root: &str, prefix: &str) -> Result<Vec<String>, Box<dyn Error>> {
                 files.push(path.display().to_string());
             }
         }
+        files.sort();
         Ok(files)
     } else {
         Ok(vec![root.to_string()])
