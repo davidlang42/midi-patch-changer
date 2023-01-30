@@ -27,8 +27,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         } else {
             return Err(format!("The first argument must specifiy 'cli' or 'gui'").into())
         };
-        let midi_in = args.get(2).ok_or("The first argument should be the MIDI-IN device (or '-' for no input device)")?;
-        let midi_out = args.get(3).ok_or("The second argument should be the MIDI-OUT device")?;
+        let midi_in = args.get(2).ok_or("The second argument should be the MIDI-IN device (or '-' for no input device)")?;
+        let midi_out = args.get(3).ok_or("The third argument should be the MIDI-OUT device")?;
         let patch_file: Option<&str> = match args.get(4) {
             Some(file) => Some(file),
             None => None
