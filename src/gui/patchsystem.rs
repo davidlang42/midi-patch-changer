@@ -50,8 +50,8 @@ impl Application for PatchSystem {
     }
 
     fn view(&self) -> Element<Message> {
-        let small = (self.screen_height / 8) as u16; // 1/8 of screen height
-        let big = (self.screen_height as u16 - 2 * small) / 2; // space for 2 lines of text
+        let small = (self.screen_height / 10) as u16; // 1/10 of screen height
+        let big = (self.screen_height as u16 - 2 * small) / 3; // space for 3 lines of text
         let top_text = if self.show_buttons {
             "Click to exit menu"
         } else {
