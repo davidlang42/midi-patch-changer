@@ -30,3 +30,6 @@ For instances when a key press is more convenient than a mouse click, the origin
 ./midi_patch_changer cli [midi in device] [midi out device] [patch file]
 ```
 Much like "Patch system (GUI)" above, the first argument is to specify CLI mode, the second/third can be any valid files (or '-' for midi in), and the last is optional.
+
+## Hardware
+A guide to running this software on a Raspberry Pi can be found [here](HARDWARE.md).
